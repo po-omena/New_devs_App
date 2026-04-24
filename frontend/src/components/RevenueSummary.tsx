@@ -3,9 +3,14 @@ import { SecureAPI } from '../lib/secureApi';
 
 interface RevenueData {
     property_id: string;
-    total_revenue: number;
+    total_revenue: string;
     currency: string;
     reservations_count: number;
+    reporting_period?: {
+        month: number;
+        year: number;
+        timezone: string;
+    };
 }
 
 interface RevenueSummaryProps {
@@ -61,7 +66,10 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
     if (error) return <div className="p-4 text-red-500 bg-red-50 rounded-lg">{error}</div>;
     if (!data) return null;
 
-    const displayTotal = Math.round(data.total_revenue * 100) / 100;
+    const parsedTotal = Number.parseFloat(data.total_revenue);
+    const safeTotal = Number.isFinite(parsedTotal) ? parsedTotal : 0;
+    const displayTotal = Math.round(safeTotal * 100) / 100;
+    const hasSubCentPrecision = Number.isFinite(parsedTotal) && !Number.isInteger(parsedTotal * 100);
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-300">
@@ -76,6 +84,11 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
                 <div className="flex items-center justify-between mb-6">
                     <div>
                         <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Total Revenue</h2>
+                        {data.reporting_period && (
+                            <p className="text-xs text-gray-400 mt-1">
+                                {`Reporting period: ${data.reporting_period.month}/${data.reporting_period.year} (${data.reporting_period.timezone})`}
+                            </p>
+                        )}
                         <div className="flex items-baseline gap-2 mt-1">
                             <span className="text-3xl font-bold text-gray-900 tracking-tight">
                                 {data.currency} {displayTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -104,12 +117,12 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
 
                 {/* Precision Warning Area */}
                 <div className="mt-4 h-6">
-                    {Math.abs(data.total_revenue - displayTotal) > 0.000001 && showRaw && (
+                    {hasSubCentPrecision && showRaw && (
                         <div className="flex items-center text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
                             <svg className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                             </svg>
-                            Precision Mismatch Detected
+                            Sub-cent precision preserved in API response
                         </div>
                     )}
                 </div>
